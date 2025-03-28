@@ -1,8 +1,12 @@
 
-import React, { FC, ReactNode, useMemo } from 'react';
+import React, { FC, ReactNode, useMemo, useState } from 'react';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
-import { ConnectionProvider, WalletProvider as SolanaWalletProvider } from '@solana/wallet-adapter-react';
-import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
+import { 
+  ConnectionProvider, 
+  WalletProvider as SolanaWalletProvider, 
+  useWallet 
+} from '@solana/wallet-adapter-react';
+import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
@@ -11,6 +15,7 @@ import {
   TorusWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { SOLANA_ENDPOINT } from '@/lib/solana';
+import { toast } from "@/hooks/use-toast";
 
 // Import Solana wallet adapter styles
 import '@solana/wallet-adapter-react-ui/styles.css';
@@ -18,6 +23,40 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 interface WalletProviderProps {
   children: ReactNode;
 }
+
+// Wallet error handler component
+const WalletConnectionErrorHandler: FC = () => {
+  const { wallet, connecting, connected, disconnecting } = useWallet();
+  
+  React.useEffect(() => {
+    const onError = (error: Error) => {
+      console.error('Wallet connection error:', error);
+      toast({
+        title: "Wallet Connection Error",
+        description: error.message || "Failed to connect wallet. Please try again.",
+        variant: "destructive",
+      });
+    };
+
+    if (wallet) {
+      wallet.adapter.on('error', onError);
+      
+      // Show a successful connection message
+      if (connected && !connecting && !disconnecting) {
+        toast({
+          title: "Wallet Connected",
+          description: `Successfully connected to ${wallet.adapter.name}.`,
+        });
+      }
+      
+      return () => {
+        wallet.adapter.off('error', onError);
+      };
+    }
+  }, [wallet, connecting, connected, disconnecting]);
+
+  return null;
+};
 
 export const WalletProvider: FC<WalletProviderProps> = ({ children }) => {
   // Can be 'mainnet-beta', 'testnet', 'devnet', or 'localnet'
@@ -41,7 +80,10 @@ export const WalletProvider: FC<WalletProviderProps> = ({ children }) => {
   return (
     <ConnectionProvider endpoint={endpoint}>
       <SolanaWalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>{children}</WalletModalProvider>
+        <WalletModalProvider>
+          <WalletConnectionErrorHandler />
+          {children}
+        </WalletModalProvider>
       </SolanaWalletProvider>
     </ConnectionProvider>
   );
