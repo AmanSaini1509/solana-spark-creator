@@ -5,11 +5,19 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { getSOLBalance, shortenAddress } from '@/lib/solana';
 import { Link, useLocation } from 'react-router-dom';
-import { AlertCircle, Wallet, LogOut, Copy } from 'lucide-react';
+import { AlertCircle, Wallet, LogOut, Copy, ChevronsUpDown } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Header = () => {
-  const { connected, publicKey, disconnect } = useWallet();
+  const { connected, publicKey, disconnect, wallets, select, wallet } = useWallet();
   const [solBalance, setSolBalance] = useState<number | null>(null);
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
@@ -80,6 +88,29 @@ const Header = () => {
     });
   };
 
+  const handleSwitchWallet = (walletName: string) => {
+    // Find the wallet by name and select it
+    const newWallet = wallets.find(w => w.adapter.name === walletName);
+    if (newWallet) {
+      // Disconnect current wallet first
+      disconnect().then(() => {
+        // Then select the new wallet
+        select(newWallet.adapter.name);
+        toast({
+          title: "Wallet Changed",
+          description: `Switched to ${walletName}.`,
+        });
+      }).catch(error => {
+        console.error('Error disconnecting wallet:', error);
+        toast({
+          title: "Error Changing Wallet",
+          description: "Failed to switch wallets. Please try again.",
+          variant: "destructive",
+        });
+      });
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-solana-dark/80 border-b border-solana-gray/30 py-3">
       <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center">
@@ -124,14 +155,40 @@ const Header = () => {
                 </div>
               )}
               
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="ml-2 text-solana-light-gray hover:text-white hover:bg-red-900/30"
-                onClick={() => disconnect()}
-              >
-                <LogOut className="h-3.5 w-3.5" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="ml-2 text-solana-light-gray hover:text-white"
+                  >
+                    <ChevronsUpDown className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-solana-dark border-solana-gray/30">
+                  <DropdownMenuLabel className="text-solana-light-gray">
+                    {wallet?.adapter.name || 'Current Wallet'}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-solana-gray/30" />
+                  {wallets.map((walletItem) => (
+                    <DropdownMenuItem 
+                      key={walletItem.adapter.name}
+                      className={`text-solana-light-gray hover:bg-solana-gray/30 hover:text-white cursor-pointer ${wallet?.adapter.name === walletItem.adapter.name ? 'bg-solana-gray/20 font-semibold' : ''}`}
+                      onClick={() => handleSwitchWallet(walletItem.adapter.name)}
+                    >
+                      {walletItem.adapter.name}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator className="bg-solana-gray/30" />
+                  <DropdownMenuItem 
+                    className="text-red-300 hover:bg-red-900/30 hover:text-red-100 cursor-pointer"
+                    onClick={() => disconnect()}
+                  >
+                    <LogOut className="h-3.5 w-3.5 mr-2" />
+                    Disconnect
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ) : (
             <WalletMultiButton className="!bg-solana-purple hover:!bg-solana-purple/80 rounded-md" />
