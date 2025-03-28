@@ -1,12 +1,12 @@
 
-import React, { FC, ReactNode, useMemo, useState } from 'react';
+import React, { FC, ReactNode, useMemo } from 'react';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { 
   ConnectionProvider, 
   WalletProvider as SolanaWalletProvider, 
   useWallet 
 } from '@solana/wallet-adapter-react';
-import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
@@ -24,7 +24,40 @@ interface WalletProviderProps {
   children: ReactNode;
 }
 
-// Wallet error handler component
+// Wallet error handler component - moved inside the main provider component
+const WalletProvider: FC<WalletProviderProps> = ({ children }) => {
+  // Can be 'mainnet-beta', 'testnet', 'devnet', or 'localnet'
+  const network = WalletAdapterNetwork.Devnet;
+
+  // You can also provide a custom RPC endpoint
+  const endpoint = useMemo(() => SOLANA_ENDPOINT, []);
+
+  // @solana/wallet-adapter-wallets includes all the adapters but supports tree shaking
+  const wallets = useMemo(
+    () => [
+      new PhantomWalletAdapter(),
+      new SolflareWalletAdapter(),
+      new CoinbaseWalletAdapter(),
+      new LedgerWalletAdapter(),
+      new TorusWalletAdapter(),
+    ],
+    [network]
+  );
+
+  return (
+    <ConnectionProvider endpoint={endpoint}>
+      <SolanaWalletProvider wallets={wallets} autoConnect>
+        <WalletModalProvider>
+          <WalletConnectionErrorHandler />
+          {children}
+        </WalletModalProvider>
+      </SolanaWalletProvider>
+    </ConnectionProvider>
+  );
+};
+
+// Error handler moved to be defined after the main component
+// This ensures the proper React context is available for the hooks
 const WalletConnectionErrorHandler: FC = () => {
   const { wallet, connecting, connected, disconnecting } = useWallet();
   
@@ -56,37 +89,6 @@ const WalletConnectionErrorHandler: FC = () => {
   }, [wallet, connecting, connected, disconnecting]);
 
   return null;
-};
-
-export const WalletProvider: FC<WalletProviderProps> = ({ children }) => {
-  // Can be 'mainnet-beta', 'testnet', 'devnet', or 'localnet'
-  const network = WalletAdapterNetwork.Devnet;
-
-  // You can also provide a custom RPC endpoint
-  const endpoint = useMemo(() => SOLANA_ENDPOINT, []);
-
-  // @solana/wallet-adapter-wallets includes all the adapters but supports tree shaking
-  const wallets = useMemo(
-    () => [
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-      new CoinbaseWalletAdapter(),
-      new LedgerWalletAdapter(),
-      new TorusWalletAdapter(),
-    ],
-    [network]
-  );
-
-  return (
-    <ConnectionProvider endpoint={endpoint}>
-      <SolanaWalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>
-          <WalletConnectionErrorHandler />
-          {children}
-        </WalletModalProvider>
-      </SolanaWalletProvider>
-    </ConnectionProvider>
-  );
 };
 
 export default WalletProvider;
