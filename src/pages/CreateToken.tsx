@@ -11,6 +11,7 @@ import TransactionStatus from '@/components/TransactionStatus';
 import { Card } from '@/components/ui/card';
 import { ArrowRight, Copy } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
+import { Link } from 'react-router-dom';
 
 const CreateToken = () => {
   const { publicKey, signTransaction, connected } = useWallet();
